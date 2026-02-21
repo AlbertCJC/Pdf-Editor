@@ -1,0 +1,5 @@
+{
+  "name": "PDF Reorder & N-Up Tool",
+  "description": "A tool to reorder PDF pages and create N-up layouts for printing.",
+  "requestFramePermissions": []
+}
