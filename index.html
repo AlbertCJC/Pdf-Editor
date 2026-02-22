@@ -1,13 +1,495 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>My Google AI Studio App</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>PDFFORGE</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0e0e10;--surface:#18181b;--border:#2e2e35;
+  --accent:#f97316;--accent2:#facc15;--text:#e4e4e7;--muted:#71717a;--r:10px;
+}
+html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif}
+.app{min-height:100vh;display:flex;flex-direction:column}
+
+/* HEADER */
+.hdr{padding:1.4rem 2.5rem 1.1rem;border-bottom:1px solid var(--border);display:flex;align-items:baseline;gap:1.2rem}
+.logo{font-family:'Bebas Neue',sans-serif;font-size:clamp(2rem,4vw,3rem);letter-spacing:.06em;line-height:1}
+.logo em{color:var(--accent);font-style:normal}
+.tagline{font-family:'DM Mono',monospace;font-size:.67rem;color:var(--muted);letter-spacing:.18em;text-transform:uppercase}
+.hdr-right{margin-left:auto}
+.pill{background:rgba(249,115,22,.12);color:var(--accent);border:1px solid rgba(249,115,22,.28);
+  border-radius:999px;padding:.18rem .7rem;font-family:'DM Mono',monospace;font-size:.67rem;display:none}
+
+/* MAIN */
+.main{flex:1;padding:1.6rem 2.5rem;display:flex;flex-direction:column;gap:1.2rem}
+
+/* UPLOADER */
+.uploader{border:2px dashed var(--border);border-radius:var(--r);padding:4rem 2rem;
+  text-align:center;cursor:pointer;transition:border-color .2s,background .2s;
+  display:flex;flex-direction:column;align-items:center;gap:.85rem}
+.uploader:hover,.uploader.drag{border-color:var(--accent);background:rgba(249,115,22,.04)}
+.up-icon{font-size:2.6rem;line-height:1}
+.up-text{color:var(--muted);font-size:.95rem}
+.up-sub{color:var(--border);font-size:.72rem;font-family:'DM Mono',monospace}
+.up-btn{margin-top:.2rem;background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--r);padding:.4rem 1.1rem;font-size:.82rem;color:var(--muted);pointer-events:none}
+.uploader:hover .up-btn{border-color:var(--accent);color:var(--accent)}
+#file-input{display:none}
+
+/* LOADING */
+.loading{display:none;flex-direction:column;align-items:center;gap:1rem;padding:3rem}
+.spinner{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--accent);
+  border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.load-text{font-family:'DM Mono',monospace;font-size:.78rem;color:var(--muted)}
+.load-bar-wrap{width:240px;height:4px;background:var(--border);border-radius:2px;overflow:hidden}
+.load-bar{height:100%;background:var(--accent);border-radius:2px;width:0;transition:width .3s}
+
+/* EDITOR */
+.editor{display:none;flex-direction:column;gap:1.2rem}
+
+/* TOOLBAR */
+.tb{display:flex;align-items:center;gap:1.1rem;flex-wrap:wrap;
+  padding:.8rem 1.1rem;background:var(--surface);border:1px solid var(--border);border-radius:var(--r)}
+.tb-info{display:flex;flex-direction:column;gap:.1rem}
+.tb-info strong{font-size:.86rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px}
+.tb-info span{font-size:.68rem;color:var(--muted);font-family:'DM Mono',monospace}
+.lc{display:flex;align-items:center;gap:.55rem;font-family:'DM Mono',monospace;font-size:.82rem}
+.lc label{display:flex;flex-direction:column;gap:.1rem;align-items:center}
+.lc label span{font-size:.58rem;color:var(--muted);text-transform:uppercase;letter-spacing:.12em}
+.lc input[type=number]{width:2.9rem;padding:.26rem .3rem;text-align:center;
+  background:var(--bg);border:1px solid var(--border);border-radius:6px;
+  color:var(--text);font-family:inherit;font-size:.92rem;transition:border-color .15s}
+.lc input:focus{outline:none;border-color:var(--accent)}
+.lc-x{font-size:.95rem;color:var(--muted)}
+.lc-badge{background:rgba(249,115,22,.12);color:var(--accent);border:1px solid rgba(249,115,22,.25);
+  padding:.14rem .5rem;border-radius:999px;font-size:.66rem}
+.btn-gen{margin-left:auto;background:var(--accent);color:#000;border:none;border-radius:var(--r);
+  padding:.5rem 1.2rem;font-family:'DM Sans',sans-serif;font-size:.86rem;font-weight:500;
+  cursor:pointer;transition:opacity .15s,transform .1s,box-shadow .15s;
+  box-shadow:0 4px 18px rgba(249,115,22,.35);white-space:nowrap}
+.btn-gen:hover{opacity:.9;transform:translateY(-1px)}
+.btn-gen:active{transform:translateY(0)}
+.btn-gen:disabled{opacity:.45;cursor:not-allowed;transform:none}
+.btn-rst{background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:var(--r);
+  padding:.46rem .9rem;font-family:'DM Sans',sans-serif;font-size:.82rem;
+  cursor:pointer;transition:color .15s,border-color .15s;white-space:nowrap}
+.btn-rst:hover{color:var(--text);border-color:var(--muted)}
+
+/* GRID */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(152px,1fr));gap:.9rem}
+
+/* CARD */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);
+  padding:.55rem;display:flex;flex-direction:column;align-items:center;gap:.45rem;
+  cursor:grab;position:relative;transition:border-color .15s,box-shadow .15s,transform .18s;
+  animation:fadeUp .3s ease both;user-select:none}
+.card:hover{border-color:var(--accent);box-shadow:0 4px 22px rgba(249,115,22,.13);transform:translateY(-2px)}
+.card.dragging{opacity:.2;border-style:dashed;transform:scale(.97);cursor:grabbing}
+.card.over{border-color:var(--accent2);box-shadow:0 0 0 2px var(--accent2)}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px) scale(.96)}to{opacity:1;transform:none}}
+.dh{position:absolute;top:5px;right:6px;color:var(--border);font-size:.75rem;transition:color .15s}
+.card:hover .dh{color:var(--muted)}
+.card canvas{border-radius:3px;display:block;box-shadow:0 2px 8px rgba(0,0,0,.5)}
+.card-lbl{font-family:'DM Mono',monospace;font-size:.66rem;color:var(--muted);letter-spacing:.06em}
+.card-spin{width:140px;height:198px;display:flex;align-items:center;justify-content:center;
+  background:#1e1e22;border-radius:3px}
+.card-spin-inner{width:22px;height:22px;border:2px solid var(--border);border-top-color:var(--accent);
+  border-radius:50%;animation:spin .7s linear infinite}
+
+/* N-UP PREVIEW */
+.nup-wrap{display:flex;flex-direction:column;gap:.7rem}
+.sec-title{font-family:'DM Mono',monospace;font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.15em}
+.nup-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);
+  padding:1.2rem;display:flex;flex-direction:column;align-items:center;gap:.9rem;overflow-x:auto}
+.nup-sheet{background:#e8e8e8;border-radius:4px;box-shadow:0 4px 24px rgba(0,0,0,.55);
+  display:grid;overflow:hidden;flex-shrink:0}
+.nup-cell{overflow:hidden;background:#fff;border:1px solid #e8e8e8;
+  display:flex;align-items:center;justify-content:center}
+.nup-cell canvas{display:block;width:100%!important;height:100%!important;object-fit:contain}
+.nup-cell.empty{background:#f5f5f5}
+.nup-lbl{font-family:'DM Mono',monospace;font-size:.67rem;color:var(--muted);letter-spacing:.07em;text-align:center}
+
+/* DIVIDER */
+.divider{height:1px;background:var(--border)}
+
+/* FOOTER */
+.footer{padding:1.4rem 2.5rem;border-top:1px solid var(--border)}
+.analysis{font-size:.77rem;color:var(--muted);line-height:1.75;max-width:82ch}
+.analysis strong{color:var(--text)}
+.analysis code{background:var(--surface);border:1px solid var(--border);border-radius:4px;
+  padding:.1em .4em;font-family:'DM Mono',monospace;font-size:.82em;color:#93c5fd}
+
+/* TOAST */
+.toast{position:fixed;bottom:1.5rem;right:1.5rem;background:#22c55e;color:#000;
+  padding:.52rem 1.1rem;border-radius:var(--r);font-size:.84rem;font-weight:500;
+  box-shadow:0 4px 20px rgba(0,0,0,.4);opacity:0;transform:translateY(8px);
+  transition:opacity .25s,transform .25s;pointer-events:none;z-index:999}
+.toast.show{opacity:1;transform:none}
+.toast.err{background:#ef4444;color:#fff}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header class="hdr">
+    <div class="logo">PDF<em>FORGE</em></div>
+    <div class="tagline">Rearrange · Reflow · Render</div>
+    <div class="hdr-right"><span class="pill" id="pill"></span></div>
+  </header>
+
+  <main class="main">
+    <input type="file" id="file-input" accept="application/pdf"/>
+
+    <!-- UPLOADER -->
+    <div class="uploader" id="uploader"
+         ondragover="event.preventDefault();this.classList.add('drag')"
+         ondragleave="this.classList.remove('drag')"
+         ondrop="onDrop(event)"
+         onclick="document.getElementById('file-input').click()">
+      <div class="up-icon">📄</div>
+      <p class="up-text">Drop a PDF here or click to browse</p>
+      <p class="up-sub">Real PDF rendering via PDF.js</p>
+      <div class="up-btn">Choose file…</div>
+    </div>
+
+    <!-- LOADING -->
+    <div class="loading" id="loading">
+      <div class="spinner"></div>
+      <div class="load-bar-wrap"><div class="load-bar" id="load-bar"></div></div>
+      <div class="load-text" id="load-text">Loading PDF…</div>
+    </div>
+
+    <!-- EDITOR -->
+    <div class="editor" id="editor">
+      <div class="tb">
+        <div class="tb-info">
+          <strong id="fname">—</strong>
+          <span id="fmeta">—</span>
+        </div>
+        <div class="lc">
+          <label><span>Cols</span><input type="number" id="cols" min="1" max="6" value="2" oninput="layoutChange()"/></label>
+          <span class="lc-x">×</span>
+          <label><span>Rows</span><input type="number" id="rows" min="1" max="6" value="2" oninput="layoutChange()"/></label>
+          <span class="lc-badge" id="slots-badge">4 per sheet</span>
+        </div>
+        <div class="lc">
+          <label>
+            <span>Orientation</span>
+            <select id="orientation" oninput="layoutChange()" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:inherit;padding:.26rem .3rem;font-size:.92rem;">
+              <option value="landscape">Landscape</option>
+              <option value="portrait">Portrait</option>
+            </select>
+          </label>
+        </div>
+        <button class="btn-gen" id="genbtn" onclick="generatePdf()">⬇ Generate 2×2 PDF</button>
+        <button class="btn-rst" onclick="resetApp()">↺ New PDF</button>
+      </div>
+
+      <div class="grid" id="grid"></div>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <p class="analysis">
+      <strong>Memory:</strong> Each <code>&lt;Page&gt;</code> canvas ≈ width × height × 4 bytes (~110 KB at 140 px).
+      Fine to ~50 pages; beyond that use <code>react-window</code> to virtualize off-screen canvases.
+      &nbsp;<strong>Threading:</strong> <code>pdfDoc.save()</code> blocks the main thread on large files —
+      offload to a <code>Web Worker</code> via <code>postMessage(buffer, [buffer])</code> for zero-copy transfer.
+    </p>
+  </footer>
+</div>
+<div class="toast" id="toastEl"></div>
+
+<!-- PDF.js from CDN -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<!-- pdf-lib from CDN -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+
+<script>
+// ── PDF.js worker ─────────────────────────────────────────────────────────────
+pdfjsLib.GlobalWorkerOptions.workerSrc = 
+  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let pdfDoc      = null;   // pdfjsLib PDF document
+let pages       = [];     // [{id, num, canvas}]
+let rawBuffer   = null;   // ArrayBuffer of the original file
+let dragSrcIdx  = null;
+let cols = 2, rows = 2;
+let orientation = 'landscape';
+
+// ── File input wiring ─────────────────────────────────────────────────────────
+document.getElementById('file-input').addEventListener('change', e => {
+  if (e.target.files[0]) handleFile(e.target.files[0]);
+});
+
+function onDrop(e) {
+  e.preventDefault();
+  document.getElementById('uploader').classList.remove('drag');
+  const file = e.dataTransfer.files[0];
+  if (!file || file.type !== 'application/pdf') {
+    showToast('Please drop a PDF file', true); return;
+  }
+  handleFile(file);
+}
+
+// ── Load & render PDF ─────────────────────────────────────────────────────────
+async function handleFile(file) {
+  showLoading(true);
+  setLoadText('Reading file…');
+  setLoadBar(5);
+
+  try {
+    rawBuffer = await file.arrayBuffer();
+    setLoadText('Parsing PDF…');
+    setLoadBar(15);
+
+    // PDF.js transfers (detaches) the ArrayBuffer it receives, so we pass a
+    // copy here and keep rawBuffer intact for pdf-lib's generatePdf() call.
+    const typedArray = new Uint8Array(rawBuffer.slice(0));
+    pdfDoc = await pdfjsLib.getDocument({ data: typedArray }).promise;
+    const n = pdfDoc.numPages;
+
+    setLoadText(`Rendering ${n} pages…`);
+    pages = [];
+
+    // Render all pages to canvases (thumbnail scale)
+    for (let i = 1; i <= n; i++) {
+      const page    = await pdfDoc.getPage(i);
+      const vp      = page.getViewport({ scale: 1 });
+      // Fit within 140px wide
+      const scale   = 140 / vp.width;
+      const viewport = page.getViewport({ scale });
+
+      const canvas  = document.createElement('canvas');
+      canvas.width  = viewport.width;
+      canvas.height = viewport.height;
+      await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+
+      pages.push({ id: `p${i}`, num: i, canvas });
+      setLoadBar(15 + Math.round((i / n) * 80));
+      setLoadText(`Rendering page ${i} of ${n}…`);
+    }
+
+    setLoadBar(100);
+    await delay(200);
+
+    // Update UI
+    const mb = (rawBuffer.byteLength / 1024 / 1024).toFixed(1);
+    document.getElementById('fname').textContent = file.name;
+    document.getElementById('fmeta').textContent = `${n} pages · ${mb} MB`;
+    const pill = document.getElementById('pill');
+    pill.textContent = `${n} pages`;
+    pill.style.display = '';
+
+    showLoading(false);
+    document.getElementById('uploader').style.display = 'none';
+    document.getElementById('editor').style.display   = 'flex';
+
+    renderGrid();
+    renderGrid();
+  } catch (err) {
+    showLoading(false);
+    document.getElementById('uploader').style.display = '';
+    showToast('Failed to load PDF: ' + err.message, true);
+    console.error(err);
+  }
+}
+
+// ── Grid ──────────────────────────────────────────────────────────────────────
+function renderGrid() {
+  const g = document.getElementById('grid');
+  g.innerHTML = '';
+  g.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+  for (let i = 0; i < pages.length; i++) {
+    g.appendChild(makeCard(pages[i], i));
+  }
+}
+
+function makeCard(p, i) {
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.draggable = true;
+  card.dataset.idx = i;
+  card.style.animationDelay = Math.min(i * 30, 400) + 'ms';
+
+  // Clone canvas so each card has its own copy (avoids single-parent DOM constraint)
+  const cvs = cloneCanvas(p.canvas);
+  cvs.style.maxWidth  = '140px';
+  cvs.style.maxHeight = '198px';
+  cvs.style.width     = '140px';
+  cvs.style.height    = 'auto';
+
+  const handle = document.createElement('span');
+  handle.className = 'dh';
+  handle.textContent = '⣿';
+
+  const label = document.createElement('span');
+  label.className = 'card-lbl';
+  label.textContent = `Page ${p.num}`;
+
+  card.appendChild(handle);
+  card.appendChild(cvs);
+  card.appendChild(label);
+
+  // Drag events
+  card.addEventListener('dragstart', e => {
+    dragSrcIdx = i;
+    setTimeout(() => card.classList.add('dragging'), 0);
+    e.dataTransfer.effectAllowed = 'move';
+  });
+  card.addEventListener('dragend', () => {
+    card.classList.remove('dragging');
+    document.querySelectorAll('.card').forEach(c => c.classList.remove('over'));
+  });
+  card.addEventListener('dragover', e => {
+    e.preventDefault();
+    if (dragSrcIdx !== i) card.classList.add('over');
+  });
+  card.addEventListener('dragleave', () => card.classList.remove('over'));
+  card.addEventListener('drop', e => {
+    e.preventDefault();
+    if (dragSrcIdx !== null && dragSrcIdx !== i) {
+      const arr = [...pages];
+      const [item] = arr.splice(dragSrcIdx, 1);
+      arr.splice(i, 0, item);
+      pages = arr;
+      renderGrid();
+    }
+    dragSrcIdx = null;
+  });
+
+  return card;
+}
+
+
+
+// ── PDF Generation (pdf-lib) ──────────────────────────────────────────────────
+async function generatePdf() {
+  if (!rawBuffer) return;
+  const btn = document.getElementById('genbtn');
+  btn.disabled = true;
+  btn.textContent = 'Generating…';
+
+  try {
+    const { PDFDocument } = PDFLib;
+    // Slice a copy — pdf-lib may detach the buffer internally; keep rawBuffer alive
+    const srcDoc = await PDFDocument.load(rawBuffer.slice(0));
+    const outDoc = await PDFDocument.create();
+
+    // A4 dimensions in points
+    const A4_W = 595.28, A4_H = 841.89;
+    const OUT_W = orientation === 'landscape' ? A4_H : A4_W;
+    const OUT_H = orientation === 'landscape' ? A4_W : A4_H;
+
+    const cellW = OUT_W / cols;
+    const cellH = OUT_H / rows;
+    const slots = cols * rows;
+    const numSheets = Math.ceil(pages.length / slots);
+
+    for (let sheet = 0; sheet < numSheets; sheet++) {
+      const outPage = outDoc.addPage([OUT_W, OUT_H]);
+
+      for (let slot = 0; slot < slots; slot++) {
+        const pageIdx = sheet * slots + slot;
+        if (pageIdx >= pages.length) break;
+
+        const srcPageNum = pages[pageIdx].num - 1; // 0-based
+        const [embedded] = await outDoc.embedPdf(srcDoc, [srcPageNum]);
+
+        // ── N-up math ──────────────────────────────────────────────────────
+        // col/row position in the grid
+        const col = slot % cols;
+        const row = Math.floor(slot / cols);
+
+        // Scale preserving aspect ratio
+        const scale  = Math.min(cellW / embedded.width, cellH / embedded.height);
+        const scaledW = embedded.width  * scale;
+        const scaledH = embedded.height * scale;
+
+        // Centre within cell; pdf-lib origin = bottom-left, so invert Y
+        const x = col * cellW + (cellW - scaledW) / 2;
+        const y = OUT_H - (row + 1) * cellH + (cellH - scaledH) / 2;
+
+        outPage.drawPage(embedded, { x, y, width: scaledW, height: scaledH });
+      }
+    }
+
+    const bytes = await outDoc.save();
+    const blob  = new Blob([bytes], { type: 'application/pdf' });
+    const url   = URL.createObjectURL(blob);
+    const a     = document.createElement('a');
+    a.href = url; a.download = `pdfforge-${cols}x${rows}.pdf`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast(`✓ Downloaded ${numSheets}-sheet ${cols}×${rows} PDF`);
+  } catch (err) {
+    showToast('Generation failed: ' + err.message, true);
+    console.error(err);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = `⬇ Generate ${cols}×${rows} PDF`;
+  }
+}
+
+// ── Controls ──────────────────────────────────────────────────────────────────
+function layoutChange() {
+  cols = Math.max(1, Math.min(6, parseInt(document.getElementById('cols').value) || 1));
+  rows = Math.max(1, Math.min(6, parseInt(document.getElementById('rows').value) || 1));
+  orientation = document.getElementById('orientation').value;
+  document.getElementById('slots-badge').textContent = `${cols * rows} per sheet`;
+  document.getElementById('genbtn').textContent = `⬇ Generate ${cols}×${rows} PDF`;
+  renderGrid();
+}
+
+function resetApp() {
+  pdfDoc = null; pages = []; rawBuffer = null;
+  document.getElementById('editor').style.display   = 'none';
+  document.getElementById('uploader').style.display = '';
+  document.getElementById('pill').style.display     = 'none';
+  document.getElementById('file-input').value       = '';
+  cols = 2; rows = 2; orientation = 'landscape';
+  document.getElementById('cols').value = 2;
+  document.getElementById('rows').value = 2;
+  document.getElementById('orientation').value = 'landscape';
+  document.getElementById('slots-badge').textContent = '4 per sheet';
+  document.getElementById('genbtn').textContent = '⬇ Generate 2×2 PDF';
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function cloneCanvas(src) {
+  const c = document.createElement('canvas');
+  c.width  = src.width;
+  c.height = src.height;
+  c.getContext('2d').drawImage(src, 0, 0);
+  return c;
+}
+function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function showLoading(on) {
+  document.getElementById('loading').style.display = on ? 'flex' : 'none';
+  if (on) { setLoadBar(0); setLoadText('Loading…'); }
+}
+function setLoadBar(pct) {
+  document.getElementById('load-bar').style.width = pct + '%';
+}
+function setLoadText(t) {
+  document.getElementById('load-text').textContent = t;
+}
+
+let toastTimer;
+function showToast(msg, err = false) {
+  const el = document.getElementById('toastEl');
+  el.textContent = msg;
+  el.className = 'toast show' + (err ? ' err' : '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 3000);
+}
+</script>
+</body>
 </html>
 
