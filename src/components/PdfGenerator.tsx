@@ -14,12 +14,18 @@ export const PdfGenerator: FC<PdfGeneratorProps> = ({ pages, rawBytes }) => {
   const [size, setSize]     = useState("A4");
   const [busy, setBusy]     = useState(false);
   const [progress, setProgress] = useState("");
+  const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
 
   const slots  = cols * rows;
   const sheets = Math.ceil(pages.length / slots);
 
   useEffect(() => {
     console.log(`PdfGenerator received rawBytes. Length: ${rawBytes?.byteLength ?? 'undefined'}`);
+    // Reset download link when a new file is loaded
+    if (downloadUrl) {
+      URL.revokeObjectURL(downloadUrl);
+      setDownloadUrl(null);
+    }
   }, [rawBytes]);
 
   const handleExport = async () => {
@@ -29,18 +35,22 @@ export const PdfGenerator: FC<PdfGeneratorProps> = ({ pages, rawBytes }) => {
     }
     setBusy(true);
     setProgress("Building PDF…");
+    if (downloadUrl) {
+      URL.revokeObjectURL(downloadUrl);
+      setDownloadUrl(null);
+    }
+
     try {
       const out = await generateNUp(pages, rawBytes, cols, rows, size);
       const blob = new Blob([out], { type: "application/pdf" });
       const url = URL.createObjectURL(blob);
-      window.open(url, '_blank');
-      setProgress("Done ✓");
-      setTimeout(() => setProgress(""), 2000);
+      setDownloadUrl(url);
+      setProgress("Your PDF is ready to download.");
     } catch (e) {
       const error = e instanceof Error ? e : new Error('An unknown error occurred');
       console.error("PDF Generation Error:", error);
-      setProgress(`Error: Could not generate PDF.`);
-      setTimeout(() => setProgress(""), 4000); // Clear error after a few seconds
+      setProgress(`Error: ${error.message}`);
+      setTimeout(() => setProgress(""), 4000);
     } finally {
       setBusy(false);
     }
@@ -69,10 +79,16 @@ export const PdfGenerator: FC<PdfGeneratorProps> = ({ pages, rawBytes }) => {
       </div>
 
       <button onClick={handleExport} disabled={busy || pages.length === 0} style={css.btn}>
-        {busy ? <Spinner small /> : `⬇ Export ${cols}×${rows} PDF`}
+        {busy ? <Spinner small /> : `⚙️ Generate PDF`}
       </button>
 
       {progress && <div style={css.progress}>{progress}</div>}
+
+      {downloadUrl && (
+        <a href={downloadUrl} download={`nup-${cols}x${rows}.pdf`} style={{...css.btn, marginTop: 10, background: '#16a34a'}}>
+          ⬇️ Download PDF
+        </a>
+      )}
 
       <details style={{ marginTop: 20 }}>
         <summary style={css.noteHead}>⚡ Performance Notes</summary>

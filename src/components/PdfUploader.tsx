@@ -16,8 +16,10 @@ export const PdfUploader: FC<PdfUploaderProps> = ({ onLoaded, busy, setBusy }) =
   const [dragHover, setDragHover] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const process = useCallback((file: File | null) => {
+  const process = useCallback(async (file: File | null) => {
     if (!file) return;
+
+    console.log(`PdfUploader received file: ${file.name}, size: ${file.size}, type: ${file.type}`);
 
     if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
       return setError("Invalid file type. Please select a PDF.");
@@ -26,11 +28,8 @@ export const PdfUploader: FC<PdfUploaderProps> = ({ onLoaded, busy, setBusy }) =
     setError(null);
     setBusy(true);
 
-    const reader = new FileReader();
-
-    reader.onload = async (event) => {
-      try {
-        const buf = event.target!.result as ArrayBuffer;
+    try {
+      const buf = await file.arrayBuffer();
         const originalBytes = new Uint8Array(buf);
         let bytes = originalBytes;
 
@@ -71,23 +70,17 @@ export const PdfUploader: FC<PdfUploaderProps> = ({ onLoaded, busy, setBusy }) =
         
         onLoaded(pages, originalBytes);
       } catch (e: any) {
-        console.error("PDF Parsing Error:", e);
-        if (e.message && (e.message.includes("No PDF header found") || e.message.includes("Invalid PDF structure"))) {
-          setError("Invalid PDF: File may be corrupt or not a valid PDF. Please try another file.");
-        } else {
-          setError(`Could not parse PDF: ${e.message}`);
-        }
-      } finally {
-        setBusy(false);
+      console.error("PDF Parsing Error:", e);
+      if (e.message && (e.message.includes("No PDF header found") || e.message.includes("Invalid PDF structure"))) {
+        setError("Invalid PDF: File may be corrupt or not a valid PDF. Please try another file.");
+      } else {
+        setError(`Could not parse PDF: ${e.message}`);
       }
-    };
-
-    reader.onerror = () => {
-      setError("An error occurred while reading the file.");
+    } finally {
       setBusy(false);
-    };
+    }
 
-    reader.readAsArrayBuffer(file);
+    
   }, [onLoaded, setBusy]);
 
   return (

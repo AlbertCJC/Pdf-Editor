@@ -43,34 +43,41 @@ export async function pageToDataUrl(pdfjsPage: any): Promise<{ dataUrl: string; 
 
 export async function generateNUp(pages: any[], rawBytes: Uint8Array, cols: number, rows: number, sizeName: string): Promise<Uint8Array> {
   const { PDFDocument } = window.PDFLib;
-  const SIZES: Record<string, [number, number]> = { A4: [595.28, 841.89], Letter: [612, 792] };
-  const [W, H] = SIZES[sizeName] ?? SIZES.A4;
-  const cellW = W / cols, cellH = H / rows;
-  const slots = cols * rows;
 
-  const srcDoc = await PDFDocument.load(rawBytes);
+  // Use a copy of the buffer, as pdf-lib can modify it
+  const srcDoc = await PDFDocument.load(rawBytes.slice(0));
   const outDoc = await PDFDocument.create();
 
-  for (let base = 0; base < pages.length; base += slots) {
-    const outPage = outDoc.addPage([W, H]);
-    const chunk = pages.slice(base, base + slots);
+  // A4 landscape in points
+  const OUT_W = 841.89, OUT_H = 595.28;
+  const cellW = OUT_W / cols;
+  const cellH = OUT_H / rows;
+  const slots = cols * rows;
+  const numSheets = Math.ceil(pages.length / slots);
 
-    for (let si = 0; si < chunk.length; si++) {
-      const pg = chunk[si];
-      const [emb] = await outDoc.embedPdf(srcDoc, [pg.originalIndex]);
-      const { width: ptW, height: ptH } = emb.scale(1);
+  for (let sheet = 0; sheet < numSheets; sheet++) {
+    const outPage = outDoc.addPage([OUT_W, OUT_H]);
 
-      const col = si % cols;
-      const row = Math.floor(si / cols);
-      const cx = col * cellW;
-      const cy = H - (row + 1) * cellH;
+    for (let slot = 0; slot < slots; slot++) {
+      const pageIdx = sheet * slots + slot;
+      if (pageIdx >= pages.length) break;
 
-      const s = Math.min(cellW / ptW, cellH / ptH);
-      const drawX = cx + (cellW - ptW * s) / 2;
-      const drawY = cy + (cellH - ptH * s) / 2;
+      const srcPageNum = pages[pageIdx].originalIndex;
+      const [embedded] = await outDoc.embedPdf(srcDoc, [srcPageNum]);
 
-      outPage.drawPage(emb, { x: drawX, y: drawY, width: ptW * s, height: ptH * s });
+      const col = slot % cols;
+      const row = Math.floor(slot / cols);
+
+      const scale = Math.min(cellW / embedded.width, cellH / embedded.height);
+      const scaledW = embedded.width * scale;
+      const scaledH = embedded.height * scale;
+
+      const x = col * cellW + (cellW - scaledW) / 2;
+      const y = OUT_H - (row + 1) * cellH + (cellH - scaledH) / 2;
+
+      outPage.drawPage(embedded, { x, y, width: scaledW, height: scaledH });
     }
   }
+
   return outDoc.save();
 }

@@ -20,12 +20,15 @@ export default function App() {
     ensureLibs().then(() => setLibsReady(true)).catch(e => setLibError(e.message));
   }, []);
 
-  const onLoaded = useCallback((pgs: any[], bytes: Uint8Array) => {
+  const onLoaded = (pgs: any[], bytes: Uint8Array) => {
+    console.log(`App.onLoaded received rawBytes. Length: ${bytes?.byteLength ?? 'undefined'}`);
     setPages(pgs);
     setRawBytes(bytes);
-  }, []);
+  };
 
   const reset = () => { setPages([]); setRawBytes(null); };
+
+  console.log(`App rendering with rawBytes. Length: ${rawBytes?.byteLength ?? 'undefined'}`);
 
   return (
     <>
